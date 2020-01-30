@@ -31,7 +31,8 @@ __all__ = [
         'topology_tiscali',
         'topology_wide',
         'topology_garr',
-        'topology_rocketfuel_latency'
+        'topology_rocketfuel_latency',
+        'topology_ds2os' # meins
            ]
 
 
@@ -784,4 +785,49 @@ def topology_rocketfuel_latency(asn, source_ratio=0.1, ext_delay=EXTERNAL_LINK_D
         fnss.add_stack(topology, v, 'receiver')
     for v in routers:
         fnss.add_stack(topology, v, 'router')
+    return IcnTopology(topology)
+
+
+@register_topology_factory('DS2OS')
+def topology_ds2os_smarthome():
+    # pass edge list to create topology (alternatively pass NetworkX object)
+
+    kas = ['ka1', 'ka2', 'ka3', 'ka4', 'ka5', 'ka6']
+    
+    edges = [
+        # main edges between KAs/rooms
+        ('ka1', 'ka2'), # BedroomChildren, BedroomParents
+        ('ka2', 'ka6'), # BedroomParents, Bathroom
+        ('ka2', 'ka4'), # BedroomParents, Kitchen
+        ('ka4', 'ka5'), # Kitchen, Garage
+        ('ka4', 'ka3'), # Kitchen, Dinningroom
+    ]
+    services = [
+        ['movement1', 'questioningservice1', 'tempin1', 'lightcontrol1'], # ka1, BedroomChildren
+        ['movement2', 'questioningservice2', 'tempin2', 'lightcontrol2'], # ka2, BedroomParents
+        ['heatingcontrol1', 'doorlock1', 'questioningservice3', 'movement3', 'tempin3'], # ka3, Dinningroom
+        ['tempin4', 'lightcontrol4', 'movement4', 'battery3'], # ka4, Kitchen
+        # TODO: complete
+    ]
+
+    for id in range(1, 5):
+        agent = 'ka' + str(id)
+        kaServices = services[id-1]
+        for s in kaServices:
+            edges.append((agent, s))
+
+    topology = fnss.Topology(data=edges)
+
+    for ka in kas:
+        fnss.add_stack(topology, ka, 'router')
+
+    for room in services:
+        for service in room:
+            
+            if service[:len('questioningservice')] == 'questioningservice':
+                fnss.add_stack(topology, service, 'receiver')
+            else:
+                fnss.add_stack(topology, service, 'source')
+
+        
     return IcnTopology(topology)
