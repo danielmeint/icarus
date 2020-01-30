@@ -31,8 +31,9 @@ __all__ = [
         'topology_tiscali',
         'topology_wide',
         'topology_garr',
-        'topology_rocketfuel_latency'
-           ]
+        'topology_rocketfuel_latency',
+        'topology_ds2os'
+    ]
 
 
 # Delays
@@ -784,4 +785,52 @@ def topology_rocketfuel_latency(asn, source_ratio=0.1, ext_delay=EXTERNAL_LINK_D
         fnss.add_stack(topology, v, 'receiver')
     for v in routers:
         fnss.add_stack(topology, v, 'router')
+    return IcnTopology(topology)
+
+@register_topology_factory('DS2OS')
+def topology_ds2os(**kwargs):
+    # pass edge list to create topology (alternatively pass NetworkX object)
+
+    agents = ['agent' + str(id) for id in range(1, 7)] # [agent1, agent2, ..., agent6]
+    
+    edges = [
+        # main edges between KAs/rooms
+        ('agent1', 'agent2'), # BedroomChildren, BedroomParents
+        ('agent2', 'agent6'), # BedroomParents, Bathroom
+        ('agent2', 'agent4'), # BedroomParents, Kitchen
+        ('agent4', 'agent5'), # Kitchen, Garage
+        ('agent4', 'agent3'), # Kitchen, Dinningroom
+    ]
+
+    rooms = [
+        ['movement1', 'questioningservice1', 'tempin1', 'lightcontrol1'], # ka1, BedroomChildren
+        ['movement2', 'questioningservice2', 'tempin2', 'lightcontrol2'], # ka2, BedroomParents
+        ['heatingcontrol1', 'doorlock1', 'questioningservice3', 'movement3', 'tempin3'], # ka3, Dinningroom
+        ['tempin4', 'lightcontrol4', 'movement4', 'battery3'], # ka4, Kitchen
+        ['tempin5', 'battery1', 'movement5', 'lightcontrol5', 'battery2'], # ka5, Garage
+        ['tempin6', 'washingmachine1', 'lightcontrol6', 'movement6'], # ka6, Bathroom
+    ]
+
+    for i, agent in enumerate(agents):
+        connectedServices = rooms[i-1]
+        for service in connectedServices:
+            edges.append((agent, service))
+
+    topology = fnss.Topology(data=edges)
+
+    for agent in agents:
+        fnss.add_stack(topology, agent, 'router')
+
+    for room in rooms:
+        for service in room:
+            if service[:len('questioningservice')] == 'questioningservice':
+                fnss.add_stack(topology, service, 'receiver')
+            else:
+                fnss.add_stack(topology, service, 'source')
+
+    topology.graph['icr_candidates'] = set(agents)
+
+    fnss.set_weights_constant(topology, 1.0)
+    fnss.set_delays_constant(topology, 1, 'ms')
+        
     return IcnTopology(topology)
