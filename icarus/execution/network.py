@@ -20,6 +20,9 @@ import fnss
 from icarus.registry import CACHE_POLICY
 from icarus.util import iround, path_links
 
+# for ttl_cache
+import icarus.models as cache
+
 __all__ = [
     'NetworkModel',
     'NetworkView',
@@ -392,8 +395,10 @@ class NetworkModel(object):
         policy_name = cache_policy['name']
         policy_args = {k: v for k, v in cache_policy.items() if k != 'name'}
         # The actual cache objects storing the content
-        self.cache = {node: CACHE_POLICY[policy_name](cache_size[node], **policy_args)
-                          for node in cache_size}
+        # self.cache = {node: CACHE_POLICY[policy_name](cache_size[node], **policy_args) for node in cache_size}
+
+        # for ttl_cache
+        self.cache = {node: cache.ttl_cache(CACHE_POLICY[policy_name](cache_size[node], **policy_args), lambda: 1) for node in cache_size}
 
         # This is for a local un-coordinated cache (currently used only by
         # Hashrouting with edge cache)

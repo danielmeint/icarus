@@ -1791,7 +1791,6 @@ def keyval_cache(cache):
 
     return cache
 
-
 def ttl_cache(cache, f_time):
     """Return a TTL cache.
 
