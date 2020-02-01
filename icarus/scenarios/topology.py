@@ -797,7 +797,8 @@ def topology_ds2os(**kwargs):
         # main edges between KAs/rooms
         ('agent1', 'agent2'), # BedroomChildren, BedroomParents
         ('agent2', 'agent6'), # BedroomParents, Bathroom
-        ('agent2', 'agent4'), # BedroomParents, Kitchen
+        # ('agent2', 'agent4'), # BedroomParents, Kitchen
+        ('agent3', 'agent6'), # Dinningroom, Bathroom
         ('agent4', 'agent5'), # Kitchen, Garage
         ('agent4', 'agent3'), # Kitchen, Dinningroom
     ]
@@ -814,21 +815,17 @@ def topology_ds2os(**kwargs):
     for i, agent in enumerate(agents):
         connectedServices = rooms[i-1]
         for service in connectedServices:
-            edges.append((agent, service))
+            edges.append((agent, service))                      # e.g. ('agent1', 'movement1')
+            edges.append((service, service + '/source'))        # e.g. ('movement1', 'movement1/source')
+            edges.append((service, service + '/receiver'))      # e.g. ('movement1', 'movement1/receiver')
 
     topology = fnss.Topology(data=edges)
 
-    for agent in agents:
-        fnss.add_stack(topology, agent, 'router')
+    for node in topology.nodes():
+        stack = 'source' if node.endswith('source') else ('receiver' if node.endswith('receiver') else 'router')
+        fnss.add_stack(topology, node, stack)
 
-    for room in rooms:
-        for service in room:
-            if service[:len('questioningservice')] == 'questioningservice':
-                fnss.add_stack(topology, service, 'receiver')
-            else:
-                fnss.add_stack(topology, service, 'source')
-
-    topology.graph['icr_candidates'] = set(agents)
+    topology.graph['icr_candidates'] = set(agents)              # only cache at agents
 
     fnss.set_weights_constant(topology, 1.0)
     fnss.set_delays_constant(topology, 1, 'ms')
