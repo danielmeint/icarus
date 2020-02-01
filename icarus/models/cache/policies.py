@@ -1905,6 +1905,7 @@ def ttl_cache(cache, f_time):
         else:  # case where TTL is None
             if expires is None:
                 # If both TTL and expire are None, then TTL is infinite
+                # print('setting infinite expiration')
                 expires = np.infty
             elif expires <= now:
                 return None

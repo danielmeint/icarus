@@ -397,6 +397,7 @@ class NetworkModel(object):
         # The actual cache objects storing the content
         # self.cache = {node: CACHE_POLICY[policy_name](cache_size[node], **policy_args) for node in cache_size}
 
+        # daniel
         # for ttl_cache
         self.cache = {node: cache.ttl_cache(CACHE_POLICY[policy_name](cache_size[node], **policy_args), lambda: 1) for node in cache_size}
 
