@@ -1894,6 +1894,9 @@ def ttl_cache(cache, f_time):
             The evicted object or *None* if no contents were evicted.
         """
         now = cache.f_time()
+
+        print(k, ttl, expires)
+
         if ttl is not None:
             if expires is not None:
                 raise ValueError('Both expires and ttl parameters provided. '
