@@ -572,7 +572,7 @@ class NetworkController(object):
             The evicted object or *None* if no contents were evicted.
         """
         # this would have to contain the ttl or expires value
-        print('calling put with self.session["content"]:', self.session['content'])
+        # print('calling put with self.session["content"]:', self.session['content'])
 
         if node in self.model.cache:
             return self.model.cache[node].put(self.session['content'])

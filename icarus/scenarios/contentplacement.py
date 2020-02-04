@@ -10,7 +10,7 @@ from fnss.util import random_from_pdf
 from icarus.registry import register_content_placement
 
 
-__all__ = ['uniform_content_placement', 'weighted_content_placement']
+__all__ = ['uniform_content_placement', 'weighted_content_placement', 'ds2os_content_placement']
 
 
 def apply_content_placement(placement, topology):
@@ -94,4 +94,14 @@ def weighted_content_placement(topology, contents, source_weights, seed=None):
     content_placement = collections.defaultdict(set)
     for c in contents:
         content_placement[random_from_pdf(source_pdf)].add(c)
+    apply_content_placement(content_placement, topology)
+
+
+@register_content_placement('DS2OS')
+def ds2os_content_placement(topology, contents):
+    content_placement = collections.defaultdict(set)
+    for c in contents:
+        print(c)
+        source = c
+        content_placement[source].add(c)
     apply_content_placement(content_placement, topology)

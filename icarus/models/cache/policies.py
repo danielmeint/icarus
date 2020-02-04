@@ -1895,7 +1895,7 @@ def ttl_cache(cache, f_time):
         """
         now = cache.f_time()
 
-        print(k, ttl, expires)
+        # print(k, ttl, expires)
 
         if ttl is not None:
             if expires is not None:

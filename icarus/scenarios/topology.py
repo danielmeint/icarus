@@ -797,8 +797,8 @@ def topology_ds2os(**kwargs):
         # main edges between KAs/rooms
         ('agent1', 'agent2'), # BedroomChildren, BedroomParents
         ('agent2', 'agent6'), # BedroomParents, Bathroom
-        # ('agent2', 'agent4'), # BedroomParents, Kitchen
-        ('agent3', 'agent6'), # Dinningroom, Bathroom
+        ('agent2', 'agent4'), # BedroomParents, Kitchen
+        # ('agent3', 'agent6'), # Dinningroom, Bathroom
         ('agent4', 'agent5'), # Kitchen, Garage
         ('agent4', 'agent3'), # Kitchen, Dinningroom
     ]

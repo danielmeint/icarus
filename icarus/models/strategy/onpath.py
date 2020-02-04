@@ -149,7 +149,7 @@ class LeaveCopyEverywhere(Strategy):
             self.controller.forward_content_hop(u, v)
             if self.view.has_cache(v):
                 # insert content
-                print('calling controller.put_content with v:', v)
+                # print('calling controller.put_content with v:', v)
                 self.controller.put_content(v)
         self.controller.end_session()
 
