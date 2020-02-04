@@ -100,8 +100,7 @@ def weighted_content_placement(topology, contents, source_weights, seed=None):
 @register_content_placement('DS2OS')
 def ds2os_content_placement(topology, contents):
     content_placement = collections.defaultdict(set)
-    for c in contents:
-        print(c)
-        source = c
-        content_placement[source].add(c)
+    for content in contents:
+        source = f'{content}/source'
+        content_placement[source].add(content)
     apply_content_placement(content_placement, topology)

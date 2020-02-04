@@ -362,23 +362,25 @@ class YCSBWorkload(object):
 
 @register_workload('DS2OS')
 class DS2OSWorkload(object):
-    def __init__(self, topology, reqs_file, contents_file, n_contents, n_warmup, n_measured, rate=1.0, **kwargs):
+    def __init__(self, topology, reqs_file, contents_file, **kwargs):
         """Constructor"""
-        if beta < 0:
-            raise ValueError('beta must be positive')
         # Set high buffering to avoid one-line reads
+        self.n_warmup = 0
+        self.n_measured = 118626
+
         self.buffering = 64 * 1024 * 1024
-        self.n_contents = n_contents
-        self.n_warmup = n_warmup
-        self.n_measured = n_measured
         self.reqs_file = reqs_file
-        self.rate = rate
         self.receivers = [v for v in topology.nodes()
                           if topology.node[v]['stack'][0] == 'receiver']
+
+
         self.contents = []
         with open(contents_file, 'r', buffering=self.buffering) as f:
             for content in f:
-                self.contents.append(content)
+                self.contents.append(content.strip())
+        for n in range(1000):
+            self.contents.append(f'dummy{n}')
+        self.n_contents = len(self.contents)
 
     def __iter__(self):
         req_counter = 0
@@ -386,8 +388,8 @@ class DS2OSWorkload(object):
             reader = csv.DictReader(f)
             for row in reader:
                 time = row['time']
-                receiver = f'{row['dstId']}/receiver'
                 content  = row['dstId']
+                receiver = content + '/receiver'
                 log = (req_counter >= self.n_warmup)
                 event = {'receiver': receiver, 'content': content, 'log': log}
                 yield (time, event)
@@ -395,4 +397,3 @@ class DS2OSWorkload(object):
                 if(req_counter >= self.n_warmup + self.n_measured):
                     raise StopIteration()
             raise ValueError("Trace did not contain enough requests")
-

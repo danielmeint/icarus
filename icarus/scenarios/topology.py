@@ -806,14 +806,15 @@ def topology_ds2os(**kwargs):
     rooms = [
         ['movement1', 'questioningservice1', 'tempin1', 'lightcontrol1'], # ka1, BedroomChildren
         ['movement2', 'questioningservice2', 'tempin2', 'lightcontrol2'], # ka2, BedroomParents
-        ['heatingcontrol1', 'doorlock1', 'questioningservice3', 'movement3', 'tempin3'], # ka3, Dinningroom
+        ['heatingcontrol1', 'doorlock1', 'questioningservice3', 'movement3', 'tempin3', 'lightcontrol3'], # ka3, Dinningroom
         ['tempin4', 'lightcontrol4', 'movement4', 'battery3'], # ka4, Kitchen
         ['tempin5', 'battery1', 'movement5', 'lightcontrol5', 'battery2'], # ka5, Garage
         ['tempin6', 'washingmachine1', 'lightcontrol6', 'movement6'], # ka6, Bathroom
     ]
 
     for i, agent in enumerate(agents):
-        connectedServices = rooms[i-1]
+        connectedServices = rooms[i]
+        # print(agent, 'is connected to', connectedServices)
         for service in connectedServices:
             edges.append((agent, service))                      # e.g. ('agent1', 'movement1')
             edges.append((service, service + '/source'))        # e.g. ('movement1', 'movement1/source')
