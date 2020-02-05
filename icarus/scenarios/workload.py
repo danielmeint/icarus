@@ -366,7 +366,7 @@ class DS2OSWorkload(object):
         """Constructor"""
         # Set high buffering to avoid one-line reads
         self.n_warmup = 0
-        self.n_measured = 118626
+        self.n_measured = 1000
 
         self.buffering = 64 * 1024 * 1024
         self.reqs_file = reqs_file
@@ -378,18 +378,19 @@ class DS2OSWorkload(object):
         with open(contents_file, 'r', buffering=self.buffering) as f:
             for content in f:
                 self.contents.append(content.strip())
-        for n in range(1000):
-            self.contents.append(f'dummy{n}')
         self.n_contents = len(self.contents)
 
     def __iter__(self):
         req_counter = 0
         with open(self.reqs_file, 'r', buffering=self.buffering) as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                time = row['time']
-                content  = row['dstId']
-                receiver = content + '/receiver'
+            for request in reader:
+                if request['operation'] != 'read':
+                    continue
+                time = request['timestamp']
+                content  = f"{request['accessedNodeAddress']}/v{request['version']}"
+                srcId = request['sourceID']
+                receiver = srcId + '/receiver'
                 log = (req_counter >= self.n_warmup)
                 event = {'receiver': receiver, 'content': content, 'log': log}
                 yield (time, event)

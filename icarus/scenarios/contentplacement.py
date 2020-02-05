@@ -24,6 +24,7 @@ def apply_content_placement(placement, topology):
         The topology
     """
     for v, contents in placement.items():
+        # print(v, contents)
         topology.node[v]['stack'][1]['contents'] = contents
 
 
@@ -101,6 +102,7 @@ def weighted_content_placement(topology, contents, source_weights, seed=None):
 def ds2os_content_placement(topology, contents):
     content_placement = collections.defaultdict(set)
     for content in contents:
-        source = f'{content}/source'
+        sensor = content.split('/')[2]
+        source = f'{sensor}/source'
         content_placement[source].add(content)
     apply_content_placement(content_placement, topology)

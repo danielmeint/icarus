@@ -817,7 +817,8 @@ def topology_ds2os(**kwargs):
         # print(agent, 'is connected to', connectedServices)
         for service in connectedServices:
             edges.append((agent, service))                      # e.g. ('agent1', 'movement1')
-            edges.append((service, service + '/source'))        # e.g. ('movement1', 'movement1/source')
+            if not service.startswith('questioningservice'):    # questioningservices only read data
+                edges.append((service, service + '/source'))    # e.g. ('movement1', 'movement1/source')
             edges.append((service, service + '/receiver'))      # e.g. ('movement1', 'movement1/receiver')
 
     topology = fnss.Topology(data=edges)
