@@ -576,6 +576,8 @@ class NetworkController(object):
 
         if node in self.model.cache:
             # return self.model.cache[node].put(self.session['content'])
+
+            # daniel: remove obsolte version if stored
             content = self.session['content']               # e.g. /agent4/movement4/movement/v2
             address = content[:content.rfind('/')]          # e.g. /agent4/movement4/movement
             version = int(content[content.rfind('v')+1:])   # e.g. 2
