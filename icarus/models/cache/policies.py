@@ -916,6 +916,7 @@ class LruCache(Cache):
     def remove(self, k, *args, **kwargs):
         if k not in self._cache:
             return False
+        # print('removing', k)
         self._cache.remove(k)
         return True
 

@@ -364,10 +364,10 @@ class YCSBWorkload(object):
 class DS2OSWorkload(object):
     def __init__(self, topology, reqs_file, contents_file, **kwargs):
         """Constructor"""
-        # Set high buffering to avoid one-line reads
         self.n_warmup = 0
-        self.n_measured = 1000
+        self.n_measured = 84172  # number of reads in subTrace2; TODO: make parameter, else infinite
 
+        # Set high buffering to avoid one-line reads
         self.buffering = 64 * 1024 * 1024
         self.reqs_file = reqs_file
         self.receivers = [v for v in topology.nodes()
