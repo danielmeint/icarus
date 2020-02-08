@@ -577,16 +577,18 @@ class NetworkController(object):
         if node in self.model.cache:
             # return self.model.cache[node].put(self.session['content'])
 
-            # daniel: remove obsolte version if stored
-            content = self.session['content']               # e.g. /agent4/movement4/movement/v2
-            address = content[:content.rfind('/')]          # e.g. /agent4/movement4/movement
-            version = int(content[content.rfind('v')+1:])   # e.g. 2
-            prev_version = max(0, version-1)                # e.g. 1
-            obsolete = address + '/v' + str(prev_version)   # e.g. /agent4/movement4/movement/v1
-            # print(content, version, prev_version, obsolete)
-            if self.model.cache[node].has(obsolete):
-                # print('removing', obsolete, 'for', content)
-                self.model.cache[node].remove(obsolete)
+            # check for DS2OS topology
+            if 'agent1' in self.model.topology.cache_nodes():
+                # assuming versioned DS2OS workload
+                content = self.session['content']               # e.g. /agent4/movement4/movement/v2
+                address = content[:content.rfind('/')]          # e.g. /agent4/movement4/movement
+                version = int(content[content.rfind('v')+1:])   # e.g. 2
+                prev_version = max(0, version-1)                # e.g. 1
+                obsolete = address + '/v' + str(prev_version)   # e.g. /agent4/movement4/movement/v1
+                # print(content, version, prev_version, obsolete)
+                if self.model.cache[node].has(obsolete):
+                    # print('removing', obsolete, 'for', content)
+                    self.model.cache[node].remove(obsolete)
             return self.model.cache[node].put(self.session['content'])
 
     def get_content(self, node):

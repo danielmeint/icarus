@@ -148,8 +148,7 @@ class LeaveCopyEverywhere(Strategy):
         for u, v in path_links(path):
             self.controller.forward_content_hop(u, v)
             if self.view.has_cache(v):
-                # insert content 
-                # daniel: replace older version if stored
+                # insert content
                 self.controller.put_content(v)
         self.controller.end_session()
 
