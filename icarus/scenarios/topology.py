@@ -830,6 +830,6 @@ def topology_ds2os(**kwargs):
     topology.graph['icr_candidates'] = set(agents)              # only cache at agents
 
     fnss.set_weights_constant(topology, 1.0)
-    fnss.set_delays_constant(topology, 1, 'ms')
+    fnss.set_delays_constant(topology, INTERNAL_LINK_DELAY, 'ms')
         
     return IcnTopology(topology)
