@@ -24,6 +24,7 @@ __all__ = [
         'LruCache',
         'SegmentedLruCache',
         'InCacheLfuCache',
+        'InCacheLfuEvictFirstCache', # daniel
         'PerfectLfuCache',
         'FifoCache',
         'ClimbCache',
@@ -766,7 +767,9 @@ class BeladyMinCache(Cache):
         if self._maxlen <= 0:
             raise ValueError('maxlen must be positive')
         self._next = defaultdict(deque)
-        for i, k in enumerate(trace):
+        for i, k in enumerate(trace): # e.g. i=1, k=/agent3/tempin3
+            if k == '/agent4/movement4/movement/v0':
+                print(i, k, self._next[k])
             self._next[k].append(i)
         for k in self._next.values():
             k.append(np.infty)
@@ -791,7 +794,10 @@ class BeladyMinCache(Cache):
 
     @inheritdoc(Cache)
     def get(self, k, *args, **kwargs):
-        self._next[k].popleft()
+        # print(k, self._next[k])
+        if k == '/agent4/movement4/movement/v0':
+            print('get', k, self._next[k])
+        self._next[k].popleft() # IndexError: pop from an empty deque
         return k in self._cache
 
     def put(self, k, *args, **kwargs):
@@ -1168,6 +1174,75 @@ class InCacheLfuCache(Cache):
     def clear(self):
         self._cache.clear()
 
+# daniel
+@register_cache_policy('IN_CACHE_LFU_EVICT_FIRST')
+class InCacheLfuEvictFirstCache(Cache):
+    @inheritdoc(Cache)
+    def __init__(self, maxlen, *args, **kwargs):
+        self._cache = {}
+        self.t = 0
+        self._maxlen = int(maxlen)
+        if self._maxlen <= 0:
+            raise ValueError('maxlen must be positive')
+
+    @inheritdoc(Cache)
+    def __len__(self):
+        return len(self._cache)
+
+    @property
+    @inheritdoc(Cache)
+    def maxlen(self):
+        return self._maxlen
+
+    @inheritdoc(Cache)
+    def dump(self):
+        return sorted(self._cache, key=lambda x: self._cache[x], reverse=True)
+
+    @inheritdoc(Cache)
+    def has(self, k, *args, **kwargs):
+        return k in self._cache
+
+    @inheritdoc(Cache)
+    def get(self, k, *args, **kwargs):
+        if self.has(k):
+            freq, t = self._cache[k]
+            self._cache[k] = freq + 1, t
+            return True
+        else:
+            return False
+
+    @inheritdoc(Cache)
+    def put(self, k, *args, **kwargs):
+        if not self.has(k):
+            self.t += 1
+            self._cache[k] = (1, self.t)
+            if len(self._cache) >= self._maxlen:
+                # evict
+                evicted = min(self._cache, key=lambda x: self._cache[x])
+                self._cache.pop(evicted)
+                # insert
+                self.t += 1
+                self._cache[k] = (1, self.t)
+                return evicted
+            else:
+                # insert
+                self.t += 1
+                self._cache[k] = (1, self.t)
+                return None
+        return None
+
+    @inheritdoc(Cache)
+    def remove(self, k, *args, **kwargs):
+        if k in self._cache:
+            self._cache.pop(k)
+            return True
+        else:
+            return False
+
+    @inheritdoc(Cache)
+    def clear(self):
+        self._cache.clear()
+
 
 @register_cache_policy('PERFECT_LFU')
 class PerfectLfuCache(Cache):
@@ -1250,7 +1325,7 @@ class PerfectLfuCache(Cache):
     @inheritdoc(Cache)
     def remove(self, k, *args, **kwargs):
         if k in self._cache:
-            self._cache.pop(k)
+            self._cache.remove(k) # daniel; TypeError: pop() takes no arguments (1 given); no one noticed because cache.remove is only explicitly called with my versioning extension
             return True
         else:
             return False
