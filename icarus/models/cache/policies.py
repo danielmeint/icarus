@@ -768,8 +768,8 @@ class BeladyMinCache(Cache):
             raise ValueError('maxlen must be positive')
         self._next = defaultdict(deque)
         for i, k in enumerate(trace): # e.g. i=1, k=/agent3/tempin3
-            if k == '/agent4/movement4/movement/v0':
-                print(i, k, self._next[k])
+            # if k == '/agent4/movement4/movement/v0':
+            #     print(i, k, self._next[k])
             self._next[k].append(i)
         for k in self._next.values():
             k.append(np.infty)
@@ -795,17 +795,20 @@ class BeladyMinCache(Cache):
     @inheritdoc(Cache)
     def get(self, k, *args, **kwargs):
         # print(k, self._next[k])
-        if k == '/agent4/movement4/movement/v0':
-            print('get', k, self._next[k])
-        self._next[k].popleft() # IndexError: pop from an empty deque
+        # if k == '/agent4/movement4/movement/v0':
+        #     print('get', k, self._next[k])
+        self._next[k].popleft()
         return k in self._cache
 
     def put(self, k, *args, **kwargs):
         if len(self) < self.maxlen:
             self._cache[k] = self._next[k]
             return None
-        next_cache = max(self._cache, key=lambda k: self._cache[k][0])
-        if self._next[k][0] < self._next[next_cache][0]:
+        # what if cache is empty when maxlen == 1
+        # print(self._cache[k]) # KeyError: '/agent5/battery2/charging/v0'
+        print(self._cache) # contains empty deques, e.g.  '/agent2/tempin2/v12': deque([]); shouldn't it still have infinite at index 0?
+        next_cache = max(self._cache, key=lambda k: self._cache[k][0]) # ? which key gets requested farthest in the future?
+        if self._next[k][0] < self._next[next_cache][0]: # IndexError: deque index out of range
             self._cache.pop(next_cache)
             self._cache[k] = self._next[k]
             return next_cache
@@ -1607,6 +1610,129 @@ class RandEvictionCache(Cache):
     def clear(self):
         self._cache.clear()
 
+
+@register_cache_policy('MDMR')
+class MdmrCache(Cache):
+    # only works with DS2OS workload
+    # requires key to include producer id
+
+    # Hahm et al. https://dl.acm.org/doi/abs/10.1145/3125719.3125732
+    # Pfender et al. https://dl.acm.org/doi/abs/10.1145/3267955.3267966
+
+    @inheritdoc(Cache)
+    def __init__(self, maxlen, **kwargs):
+        self._cache = LinkedSet()
+        self._maxlen = int(maxlen)
+        if self._maxlen <= 0:
+            raise ValueError('maxlen must be positive')
+
+    @inheritdoc(Cache)
+    def __len__(self):
+        return len(self._cache)
+
+    @property
+    @inheritdoc(Cache)
+    def maxlen(self):
+        return self._maxlen
+
+    @inheritdoc(Cache)
+    def dump(self):
+        return list(iter(self._cache))
+
+    def position(self, k, *args, **kwargs):
+        """Return the current position of an item in the cache. Position *0*
+        refers to the head of cache (i.e. most recently used item), while
+        position *maxlen - 1* refers to the tail of the cache (i.e. the least
+        recently used item).
+
+        This method does not change the internal state of the cache.
+
+        Parameters
+        ----------
+        k : any hashable type
+            The item looked up in the cache
+
+        Returns
+        -------
+        position : int
+            The current position of the item in the cache
+        """
+        if k not in self._cache:
+            raise ValueError('The item %s is not in the cache' % str(k))
+        return self._cache.index(k)
+
+    @inheritdoc(Cache)
+    def has(self, k, *args, **kwargs):
+        return k in self._cache
+
+    @inheritdoc(Cache)
+    def get(self, k, *args, **kwargs):
+        # search content over the list
+        # if it has it push on top, otherwise return false
+        if k not in self._cache:
+            return False
+        self._cache.move_to_top(k)
+        return True
+
+    def put(self, k, *args, **kwargs):
+        """Insert an item in the cache if not already inserted.
+
+        If the element is already present in the cache, it will pushed to the
+        top of the cache.
+
+        Parameters
+        ----------
+        k : any hashable type
+            The item to be inserted
+
+        Returns
+        -------
+        evicted : any hashable type
+            The evicted object or *None* if no contents were evicted.
+        """
+        # if content in cache, push it on top, no eviction
+        if k in self._cache:
+            print('MDMR', k, 'already in the cache')
+            self._cache.move_to_top(k)
+            return None
+        # if cache is full, evict according to MDMR
+        evicted = None
+        if len(self._cache) >= self._maxlen:
+            # if there is no item from the same producer, evict oldest one
+            evicted = self._cache.bottom
+
+            # look for oldest item from same producer
+            # example value for k: /agent5/battery2/charge/v1002
+            new_agent  = k.split('/')[1].strip() # e.g. agent5
+            new_sensor = k.split('/')[2].strip() # e.g. battery2
+
+            # oldest one is first from bottom
+            for old_item in reversed(self._cache):
+                old_agent  = old_item.split('/')[1].strip()
+                old_sensor = old_item.split('/')[2].strip()
+                # old and new addresses cannot match exactly because we already removed obsolete values i.e. v4 for v5
+                if old_agent == new_agent and old_sensor == new_sensor:
+                    # print(k, 'replaces', old_item)
+                    evicted = old_item
+                    # print('evicted', evicted) # prints /agent3/tempin3/v3026 replaces /agent3/tempin3/v3024 which should never happen because we already removed obsoletes
+                    break
+            self._cache.remove(evicted)
+        # if content not in cache append it on top
+        self._cache.append_top(k)
+        return evicted
+        # return self._cache.pop_bottom() if len(self._cache) > self._maxlen else None
+
+    @inheritdoc(Cache)
+    def remove(self, k, *args, **kwargs):
+        if k not in self._cache:
+            return False
+        # print('removing', k)
+        self._cache.remove(k)
+        return True
+
+    @inheritdoc(Cache)
+    def clear(self):
+        self._cache.clear()
 
 def insert_after_k_hits_cache(cache, k=2, memory=None):
     """Return a cache inserting items only after k requests.

@@ -385,6 +385,7 @@ class DS2OSWorkload(object):
         with open(self.reqs_file, 'r', buffering=self.buffering) as f:
             reader = csv.DictReader(f)
             for request in reader:
+                # trace also contains writes
                 if request['operation'] != 'read':
                     continue
                 time = request['timestamp']
