@@ -29,6 +29,8 @@ __all__ = [
         'FifoCache',
         'ClimbCache',
         'RandEvictionCache',
+        'MdmrCache', # daniel
+        'DS2OSPerfectLfuCache',
         'insert_after_k_hits_cache',
         'rand_insert_cache',
         'keyval_cache',
@@ -1216,6 +1218,7 @@ class InCacheLfuEvictFirstCache(Cache):
 
     @inheritdoc(Cache)
     def put(self, k, *args, **kwargs):
+        evicted = None
         if not self.has(k):
             self.t += 1
             self._cache[k] = (1, self.t)
@@ -1223,16 +1226,10 @@ class InCacheLfuEvictFirstCache(Cache):
                 # evict
                 evicted = min(self._cache, key=lambda x: self._cache[x])
                 self._cache.pop(evicted)
-                # insert
-                self.t += 1
-                self._cache[k] = (1, self.t)
-                return evicted
-            else:
-                # insert
-                self.t += 1
-                self._cache[k] = (1, self.t)
-                return None
-        return None
+            # insert
+            self.t += 1
+            self._cache[k] = (1, self.t)
+        return evicted # could be None
 
     @inheritdoc(Cache)
     def remove(self, k, *args, **kwargs):
@@ -1733,6 +1730,89 @@ class MdmrCache(Cache):
     @inheritdoc(Cache)
     def clear(self):
         self._cache.clear()
+
+@register_cache_policy('DS2OS_PERFECT_LFU')
+class DS2OSPerfectLfuCache(Cache):
+    """
+    Version agnostic perfect LFU
+
+    for example: /agent3/tempin3/v4 is counted towards same frequency as /agent3/tempin3/v3
+
+    upon write, new version must be fetched but keeps lfu count of its predecessor
+    """
+
+    @inheritdoc(Cache)
+    def __init__(self, maxlen, *args, **kwargs):
+        # Dict storing counter for all addresses, not only those in cache
+        self._counter = {}
+        # Set storing only items currently in cache
+        self._cache = set()
+        self.t = 0
+        self._maxlen = int(maxlen)
+        if self._maxlen <= 0:
+            raise ValueError('maxlen must be positive')
+
+    @inheritdoc(Cache)
+    def __len__(self):
+        return len(self._cache)
+
+    @property
+    @inheritdoc(Cache)
+    def maxlen(self):
+        return self._maxlen
+
+    @inheritdoc(Cache)
+    def dump(self):
+        return sorted(self._cache, key=lambda x: self._counter[x], reverse=True)
+
+    @inheritdoc(Cache)
+    def has(self, k, *args, **kwargs):
+        return k in self._cache
+
+    @inheritdoc(Cache)
+    def get(self, k, *args, **kwargs):
+        self.t += 1
+        address = k[:k.rfind('/')] # e.g. address=='/agent3/tempin3' if k=='/agent3/tempin3/v5'
+        if address in self._counter:
+            freq, t = self._counter[address]
+            self._counter[address] = freq + 1, t
+        else:
+            self._counter[address] = 1, self.t
+        if self.has(k): # specific version
+            return True
+        else:
+            return False
+
+    @inheritdoc(Cache)
+    def put(self, k, *args, **kwargs):
+        address = k[:k.rfind('/')]
+        if not self.has(k):
+            if address in self._counter:
+                freq, t = self._counter[address]
+                self._counter[address] = (freq + 1, t)
+            else:
+                # If I always call a get before a put, this line should never
+                # be executed
+                self._counter[address] = (1, self.t)
+            self._cache.add(k)
+            if len(self._cache) > self._maxlen:
+                evicted = min(self._cache, key=lambda x: self._counter[x[:x.rfind('/')]]) # x[:x.rfind('/')]
+                self._cache.remove(evicted)
+                return evicted
+        return None
+
+    @inheritdoc(Cache)
+    def remove(self, k, *args, **kwargs):
+        if k in self._cache:
+            self._cache.remove(k)
+            return True
+        else:
+            return False
+
+    @inheritdoc(Cache)
+    def clear(self):
+        self._cache.clear()
+        self._counter.clear()
 
 def insert_after_k_hits_cache(cache, k=2, memory=None):
     """Return a cache inserting items only after k requests.
