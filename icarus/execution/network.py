@@ -23,6 +23,8 @@ from icarus.util import iround, path_links
 # for ttl_cache
 import icarus.models as cache
 
+import re
+
 __all__ = [
     'NetworkModel',
     'NetworkView',
@@ -578,9 +580,8 @@ class NetworkController(object):
             # return self.model.cache[node].put(self.session['content'])
 
             # check for DS2OS topology
-            if 'agent1' in self.model.topology.cache_nodes():
-                # assuming versioned DS2OS workload
-                content = self.session['content']               # e.g. /agent4/movement4/movement/v2
+            content = self.session['content']                   # e.g. /agent4/movement4/movement/v2
+            if bool(re.search('/v\d+$', content)): # content ends with version number
                 address = content[:content.rfind('/')]          # e.g. /agent4/movement4/movement
                 version = int(content[content.rfind('v')+1:])   # e.g. 2
                 prev_version = max(0, version-1)                # e.g. 1
@@ -589,7 +590,9 @@ class NetworkController(object):
                 if self.model.cache[node].has(obsolete):
                     # print('removing', obsolete, 'for', content)
                     self.model.cache[node].remove(obsolete)
-            return self.model.cache[node].put(self.session['content'])
+            # return self.model.cache[node].put(self.session['content'], expires=getExpiry(self.session['content']))
+            # print(self.session['content'], self.session['timestamp'])
+            return self.model.cache[node].put(content)
 
     def get_content(self, node):
         """Get a content from a server or a cache.

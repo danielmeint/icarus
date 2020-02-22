@@ -2256,6 +2256,5 @@ def ttl_cache(cache, f_time):
 
     return cache
 
-
 def ttl_keyval_cache():
     pass

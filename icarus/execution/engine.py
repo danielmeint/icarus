@@ -56,7 +56,13 @@ def exec_experiment(topology, workload, netconf, strategy, cache_policy, collect
     strategy_args = {k: v for k, v in strategy.items() if k != 'name'}
     strategy_inst = STRATEGY[strategy_name](view, controller, **strategy_args)
 
-    for time, event in workload:
+    for time, event in workload: # e.g. time: 1520036461364, event: {'receiver': 'battery3/receiver', 'content': '/agent4/battery3/charging/v0', 'log': True}
         # print('calling process_event with time:', time, '  event', event)
+        # write_to_file(time)
         strategy_inst.process_event(time, **event)
     return collector.results()
+
+# daniel ugly helper
+def write_to_file(timestamp):
+    with open('/Users/danielmeint/experiments/trace/time.txt', 'w') as f:
+        f.write(timestamp)

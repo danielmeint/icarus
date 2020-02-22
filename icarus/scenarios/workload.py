@@ -30,7 +30,8 @@ __all__ = [
         'GlobetraffWorkload',
         'TraceDrivenWorkload',
         'YCSBWorkload',
-        'DS2OSWorkload'
+        'DS2OSWorkload',
+        'DS2OSNoVersionsWorkload'
            ]
 
 
@@ -390,6 +391,46 @@ class DS2OSWorkload(object):
                     continue
                 time = request['timestamp']
                 content  = f"{request['accessedNodeAddress']}/v{request['version']}"
+                srcId = request['sourceID']
+                receiver = srcId + '/receiver'
+                log = (req_counter >= self.n_warmup)
+                event = {'receiver': receiver, 'content': content, 'log': log}
+                yield (time, event)
+                req_counter += 1
+                if(req_counter >= self.n_warmup + self.n_measured):
+                    raise StopIteration()
+            raise ValueError("Trace did not contain enough requests")
+
+@register_workload('DS2OSNoVersions')
+class DS2OSNoVersionsWorkload(object):
+    def __init__(self, topology, reqs_file, contents_file, **kwargs):
+        """Constructor"""
+        self.n_warmup = 0
+        self.n_measured = 84172  # number of reads in subTrace2; TODO: make parameter, else infinite
+
+        # Set high buffering to avoid one-line reads
+        self.buffering = 64 * 1024 * 1024
+        self.reqs_file = reqs_file
+        self.receivers = [v for v in topology.nodes()
+                          if topology.node[v]['stack'][0] == 'receiver']
+
+
+        self.contents = []
+        with open(contents_file, 'r', buffering=self.buffering) as f:
+            for content in f:
+                self.contents.append(content.strip())
+        self.n_contents = len(self.contents)
+
+    def __iter__(self):
+        req_counter = 0
+        with open(self.reqs_file, 'r', buffering=self.buffering) as f:
+            reader = csv.DictReader(f)
+            for request in reader:
+                # trace also contains writes
+                if request['operation'] != 'read':
+                    continue
+                time = request['timestamp']
+                content  = request['accessedNodeAddress']
                 srcId = request['sourceID']
                 receiver = srcId + '/receiver'
                 log = (req_counter >= self.n_warmup)
