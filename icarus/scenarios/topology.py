@@ -833,3 +833,104 @@ def topology_ds2os(**kwargs):
     fnss.set_delays_constant(topology, INTERNAL_LINK_DELAY, 'ms')
         
     return IcnTopology(topology)
+
+@register_topology_factory('TS')
+def topology_transit_stub(**kwargs):
+    edges = [
+        (1, 2),     # level 0
+
+        (1, 12),    # 0-1 connections
+        (2, 20),
+
+        (10, 11),   # level 1 left side
+        (10, 13), 
+        (11, 15), 
+        (12, 15), 
+        (13, 14), 
+        (14, 15), 
+        (15, 16), 
+        
+        (20, 21),   # level 1 right side
+        (20, 23), 
+        (20, 24),
+        (21, 24),
+        (21, 25),
+        (22, 25),
+        (25, 26),
+
+        (10, 100),  # line topology
+        (100, 101),
+        (101, 102),
+        (102, 103),
+        (103, 104),
+
+        (13, 130),  # star topology
+        (130, 131),
+        (131, 132),
+        (131, 134),
+        (131, 133),
+
+        (16, 160),  # full mesh
+        (160, 161),
+        (160, 162),
+        (160, 163),
+        (160, 164),
+        (161, 162),
+        (161, 163),
+        (161, 164),
+        (162, 163),
+        (162, 164),
+        (163, 164),
+
+        (22, 220),  # ring
+        (220, 221),
+        (220, 222),
+        (221, 224),
+        (222, 223),
+        (223, 224),
+
+        (23, 230),
+        (230, 231),
+        (230, 232),
+        (230, 233),
+        (231, 234),
+        (233, 234),
+
+        (26, 260),
+        (260, 261),
+        (261, 262),
+        (262, 263),
+        (262, 264),
+    ]
+
+    nodes = sorted(set([v for edge in edges for v in edge]))
+
+    for v in nodes:
+        if v >= 100:                        # e.g. 100
+            edges.append((v, v * 10))       # e.g. 1000; source
+            edges.append((v, v * 10 + 1))   # e.g. 1001; receiver
+    
+    topology = fnss.Topology(data=edges)
+
+    sources   = [v for v in topology.nodes() if v >= 1000 and v % 2 == 0]
+    receivers = [v for v in topology.nodes() if v >= 1000 and v % 2 == 1]
+    routers   = [v for v in topology.nodes() if v < 1000]
+
+    topology.graph['icr_candidates'] = set(routers)
+
+    for v in sources:
+        fnss.add_stack(topology, v, 'source')
+    for v in receivers:
+        fnss.add_stack(topology, v, 'receiver')
+    for v in routers:
+        fnss.add_stack(topology, v, 'router')
+    # set weights and delays on all links
+    fnss.set_weights_constant(topology, 1.0)
+    fnss.set_delays_constant(topology, INTERNAL_LINK_DELAY, 'ms')
+    # TODO distringuish between internal and external links
+    # label links as internal or external
+    for u, v in topology.edges():
+        topology.adj[u][v]['type'] = 'internal'
+
+    return IcnTopology(topology)
+

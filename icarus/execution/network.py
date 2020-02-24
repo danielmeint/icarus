@@ -581,7 +581,7 @@ class NetworkController(object):
 
             # check for DS2OS topology
             content = self.session['content']                   # e.g. /agent4/movement4/movement/v2
-            if bool(re.search('/v\d+$', content)): # content ends with version number
+            if 'agent1' in self.model.topology.cache_nodes() and bool(re.search('/v\d+$', content)): # DS2OS workload and content ends with version number
                 address = content[:content.rfind('/')]          # e.g. /agent4/movement4/movement
                 version = int(content[content.rfind('v')+1:])   # e.g. 2
                 prev_version = max(0, version-1)                # e.g. 1

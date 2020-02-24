@@ -108,7 +108,8 @@ class TruncatedZipfDist(DiscreteDist):
             The seed to be used for random number generation
         """
         # Validate parameters
-        if alpha <= 0:
+        # if alpha <= 0:
+        if alpha < 0:
             raise ValueError('alpha must be positive')
         if n < 0:
             raise ValueError('n must be positive')
