@@ -926,11 +926,21 @@ def topology_transit_stub(**kwargs):
         fnss.add_stack(topology, v, 'router')
     # set weights and delays on all links
     fnss.set_weights_constant(topology, 1.0)
-    fnss.set_delays_constant(topology, INTERNAL_LINK_DELAY, 'ms')
-    # TODO distringuish between internal and external links
-    # label links as internal or external
+    # fnss.set_delays_constant(topology, INTERNAL_LINK_DELAY, 'ms')
+
+    external_links = []
+    internal_links = []
+
     for u, v in topology.edges():
-        topology.adj[u][v]['type'] = 'internal'
+        if len(str(u)) == len(str(v)):
+            internal_links.append((u, v))
+            topology.adj[u][v]['type'] = 'internal'
+        else:
+            external_links.append((u, v))
+            topology.adj[u][v]['type'] = 'external'
+
+    fnss.set_delays_constant(topology, INTERNAL_LINK_DELAY, 'ms', internal_links)
+    fnss.set_delays_constant(topology, EXTERNAL_LINK_DELAY, 'ms', external_links)
 
     return IcnTopology(topology)
 
