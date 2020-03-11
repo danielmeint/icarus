@@ -14,7 +14,7 @@ from icarus.registry import register_cache_policy
 from icarus.util import apportionment, inheritdoc
 
 import numpy as np
-
+from heapq import heappush, heappop
 
 __all__ = [
         'LinkedSet',
@@ -1607,9 +1607,83 @@ class RandEvictionCache(Cache):
     def clear(self):
         self._cache.clear()
 
-
 @register_cache_policy('MDMR')
 class MdmrCache(Cache):
+    # replacement rules:
+    # 1. remove an older chunk from the same producer as the incoming chunk (not necessarily the oldest one)
+    # 2. remove oldest chunk from a producer with more than one chunk in the cache
+    # 3. remove oldest chunk
+
+    @inheritdoc(Cache)
+    def __init__(self, maxlen, *args, **kwargs):
+        self._cache = [] # heap sorted by content creation time e.g. [(123, 'agent1/tempin1'), (126, 'agent2/movement2')]
+        self._maxlen = int(maxlen)
+        if self._maxlen <= 0:
+            raise ValueError('maxlen must be positive')
+
+    @inheritdoc(Cache)
+    def __len__(self):
+        return len(self._cache)
+        
+    @property
+    @inheritdoc(Cache)
+    def maxlen(self):
+        return self._maxlen
+
+    @inheritdoc(Cache)
+    def dump(self):
+        return [content for (time, content) in self._cache]
+
+    @inheritdoc(Cache)
+    def get(self, k, *args, **kwargs):
+        return self.has(k)
+
+    @inheritdoc(Cache)
+    def has(self, k, *args, **kwargs):
+        return any([content == k for (time, content) in self._cache])
+
+    @inheritdoc(Cache)
+    def put(self, k, *args, **kwargs):
+        if not self.has(k):
+            # insert
+            new_producer  = k.split('/')[2]  # e.g. tempin6
+            lastWrite = k.split('/')[-2] # e.g. 1520108914423
+            evicted = None
+            if len(self) == self.maxlen:
+                # older chunk from same producer
+                evicted = [(time, content) for (time,content) in self._cache if content.split('/')[2] == new_producer][0]
+                if evicted == None:
+                    # remove oldest chunk from producer with 2+ objects in cache
+                    old_producers = set()
+                    for (time,content) in self._cache:
+                        old_producer = content.split('/')[2]
+                        if old_producer in old_producers:
+                            # more than 1 item from old_producer
+                            # evict oldest one, i.e. first one
+                            evicted = [(time, content) for (time,content) in self._cache if content.split('/')[2] == old_producer][0]
+                            break
+                        old_producers.add(old_producer)
+                if evicted == None:
+                    # oldest item
+                    evicted = self._cache[0]
+                self._cache.remove(evicted)
+            # insert
+            heappush(self._cache, (lastWrite, k))
+        return evicted[1]
+
+    @inheritdoc(Cache)
+    def remove(self, k, *args, **kwargs):
+        if not self.has(k):
+            return False
+        self._cache.remove(k)
+        return True
+
+    @inheritdoc(Cache)
+    def clear(self):
+        self._cache.clear()
+
+@register_cache_policy('MDMR_lru')
+class MdmrLruCache(Cache):
     # only works with DS2OS workload
     # requires key to include producer id
 

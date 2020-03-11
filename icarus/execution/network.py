@@ -580,16 +580,17 @@ class NetworkController(object):
             # return self.model.cache[node].put(self.session['content'])
 
             # check for DS2OS topology
-            content = self.session['content']                   # e.g. /agent4/movement4/movement/v2
-            if 'agent1' in self.model.topology.cache_nodes() and bool(re.search('/v\d+$', content)): # DS2OS workload and content ends with version number
-                address = content[:content.rfind('/')]          # e.g. /agent4/movement4/movement
-                version = int(content[content.rfind('v')+1:])   # e.g. 2
-                prev_version = max(0, version-1)                # e.g. 1
-                obsolete = address + '/v' + str(prev_version)   # e.g. /agent4/movement4/movement/v1
-                # print(content, version, prev_version, obsolete)
-                if self.model.cache[node].has(obsolete):
-                    # print('removing', obsolete, 'for', content)
-                    self.model.cache[node].remove(obsolete)
+            content = self.session['content']                   # e.g. /agent1/movement1/movement/1520111355617/1520113652522
+            if 'agent1' in self.model.topology.cache_nodes() and bool(re.search('\/\d+\/', content)): # DS2OS workload and content ends with timestamps
+                address = "/".join(content.split('/')[:-2])     # e.g. /agent1/movement1/movement
+                cached_contents = self.model.cache[node].dump()
+                obsolete_versions = [i for i in cached_contents if i.startswith(address)]
+                assert len(obsolete_versions) < 2, 'more than one obsolete version found in the cache'
+
+                if len(obsolete_versions) > 0:
+                    for v in obsolete_versions:
+                        self.model.cache[node].remove(v)
+                    
             # return self.model.cache[node].put(self.session['content'], expires=getExpiry(self.session['content']))
             # print(self.session['content'], self.session['timestamp'])
             return self.model.cache[node].put(content)

@@ -18,6 +18,7 @@ __all__ = [
        'CacheLessForMore',
        'RandomBernoulli',
        'RandomChoice',
+       'PCasting',
            ]
 
 
@@ -413,4 +414,51 @@ class RandomChoice(Strategy):
             self.controller.forward_content_hop(u, v)
             if v == designated_cache:
                 self.controller.put_content(v)
+        self.controller.end_session()
+
+# only works with ds2os contents with lastWrite and nextWrite
+@register_strategy('PCASTING')
+class PCasting(Strategy):
+    @inheritdoc(Strategy)
+    def __init__(self, view, controller, **kwargs):
+        super(PCasting, self).__init__(view, controller)
+        self.cache_size = view.cache_nodes(size=True)
+
+    @inheritdoc(Strategy)
+    def process_event(self, time, receiver, content, log):
+        # get all required data
+        source = self.view.content_source(content)
+        path = self.view.shortest_path(receiver, source)
+        # Route requests to original source and queries caches on the path
+        self.controller.start_session(time, receiver, content, log)
+        for u, v in path_links(path):
+            self.controller.forward_request_hop(u, v)
+            if self.view.has_cache(v):
+                if self.controller.get_content(v):
+                    serving_node = v
+                    break
+            # No cache hits, get content from source
+            self.controller.get_content(v)
+            serving_node = v
+        # Return content
+        path = list(reversed(self.view.shortest_path(receiver, serving_node)))
+        for u, v in path_links(path):
+            self.controller.forward_content_hop(u, v)
+            if v != receiver and self.view.has_cache(v):
+                # actual pCASTING logic
+                cache_size = self.cache_size[v]
+                dump       = self.view.cache_dump(v)
+                occupied   = len(dump)
+                assert occupied <= cache_size
+                oc = occupied/cache_size # cache occupancy
+                # content must look like this: /agent1/movement1/movement/1520034756231/1520044926135
+                lastWrite = float(content.split('/')[-2])
+                nextWrite = float(content.split('/')[-1]) # could be inf
+                f = nextWrite - lastWrite
+                time = float(time)
+                fr = 1 - ((time - lastWrite)/f) # 0 <= residual lifetime <= 1
+                probability = 0.5 * (1 - oc) + 0.5 * fr
+                assert probability <= 1
+                if random.random() < probability:
+                    self.controller.put_content(v)
         self.controller.end_session()

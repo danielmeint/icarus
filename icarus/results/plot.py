@@ -162,7 +162,11 @@ def plot_lines(resultset, desc, filename, plotdir):
     if 'xticks' in desc:
         ax1.set_xticks(desc['xticks'])
         ax1.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        ax1.set_xticklabels([str(xtick) for xtick in desc['xticks']])
+        # ax1.set_xticklabels([str(xtick) for xtick in desc['xticks']])
+        if desc['filter']['topology']['name'] == 'DS2OS':
+            ax1.set_xticklabels([str(i) for i in [6, 12, 18, 24, 36, 72, 180]]) # daniel; only for smart home experiment
+        else:
+            ax1.set_xticklabels([str(xtick) for xtick in desc['xticks']])
     if 'yticks' in desc:
         ax1.set_yticks(desc['yticks'])
         ax1.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())

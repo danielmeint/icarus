@@ -390,9 +390,8 @@ class DS2OSWorkload(object):
                 if request['operation'] != 'read':
                     continue
                 time = request['timestamp']
-                content  = f"{request['accessedNodeAddress']}/v{request['version']}"
-                srcId = request['sourceID']
-                receiver = srcId + '/receiver'
+                content  = f"{request['accessedNodeAddress']}/{request['lastWrite']}/{request['nextWrite']}"
+                receiver = request['sourceID'] + '/receiver'
                 log = (req_counter >= self.n_warmup)
                 event = {'receiver': receiver, 'content': content, 'log': log}
                 yield (time, event)
