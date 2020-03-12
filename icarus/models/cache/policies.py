@@ -30,6 +30,7 @@ __all__ = [
         'ClimbCache',
         'RandEvictionCache',
         'MdmrCache', # daniel
+        'LffCache', # daniel
         'DS2OSPerfectLfuCache',
         'insert_after_k_hits_cache',
         'rand_insert_cache',
@@ -1666,6 +1667,7 @@ class MdmrCache(Cache):
                 if evicted == None:
                     # oldest item
                     evicted = self._cache[0]
+                assert evicted != None
                 self._cache.remove(evicted)
             # insert
             heappush(self._cache, (lastWrite, k))
@@ -1675,7 +1677,9 @@ class MdmrCache(Cache):
     def remove(self, k, *args, **kwargs):
         if not self.has(k):
             return False
-        self._cache.remove(k)
+        toremove = [(time, content) for (time, content) in self._cache if content == k]
+        assert len(toremove) <= 1
+        self._cache.remove(toremove)
         return True
 
     @inheritdoc(Cache)
@@ -1805,6 +1809,67 @@ class MdmrLruCache(Cache):
     def clear(self):
         self._cache.clear()
 
+@register_cache_policy('LFF')
+class LffCache(Cache):
+    @inheritdoc(Cache)
+    def __init__(self, maxlen, *args, **kwargs):
+        self._cache = set()
+        self._maxlen = int(maxlen)
+        if self._maxlen <= 0:
+            raise ValueError('maxlen must be positive')
+
+    @inheritdoc
+    def __len__(self):
+        return len(self._cache)
+
+    @property
+    @inheritdoc(Cache)
+    def maxlen(self):
+        return self._maxlen
+
+    @inheritdoc(Cache)
+    def dump(self):
+        return sorted(self._cache, key=lambda x: int(x.split('/')[-1])) # sorted from least fresh to most fresh, i.e. from lowest nextWrite to highest nextWrite
+
+    @inheritdoc(Cache)
+    def has(self, k, *args, **kwargs):
+        return k in self._cache
+
+    def position(self, k, *args, **kwargs):
+        for index, content in enumerate(self.dump()):
+            if content == k:
+                return index
+        raise ValueError('The item %s is not in the cache' % str(k))
+
+    @inheritdoc(Cache)
+    def get(self, k, *args, **kwargs):
+        return self.has(k)
+
+    @inheritdoc(Cache)
+    def put(self, k, *args, **kwargs):
+        evicted = None
+        if not self.has(k):
+            if len(self._cache) == self.maxlen:
+                # evict item which expires next (or has already expired?)
+                evicted = self.dump()[0]
+                self._cache.remove(evicted)
+            # insert new item
+            self._cache.add(k)
+        return evicted
+
+    @inheritdoc(Cache)
+    def remove(self, k, *args, **kwargs):
+        if k in self._cache:
+            self._cache.remove(k)
+            return True
+        else:
+            return False
+
+    @inheritdoc(Cache)
+    def clear(self):
+        self._cache.clear()
+
+    
 @register_cache_policy('DS2OS_PERFECT_LFU')
 class DS2OSPerfectLfuCache(Cache):
     """
