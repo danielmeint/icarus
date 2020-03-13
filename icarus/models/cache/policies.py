@@ -1617,7 +1617,7 @@ class MdmrCache(Cache):
 
     @inheritdoc(Cache)
     def __init__(self, maxlen, *args, **kwargs):
-        self._cache = [] # heap sorted by content creation time e.g. [(123, 'agent1/tempin1'), (126, 'agent2/movement2')]
+        self._cache = set()
         self._maxlen = int(maxlen)
         if self._maxlen <= 0:
             raise ValueError('maxlen must be positive')
@@ -1633,7 +1633,7 @@ class MdmrCache(Cache):
 
     @inheritdoc(Cache)
     def dump(self):
-        return [content for (time, content) in self._cache]
+        return sorted(self._cache, key=lambda x: float(x.split('/')[-2])) # sorted by lastWrite
 
     @inheritdoc(Cache)
     def get(self, k, *args, **kwargs):
@@ -1641,47 +1641,44 @@ class MdmrCache(Cache):
 
     @inheritdoc(Cache)
     def has(self, k, *args, **kwargs):
-        return any([content == k for (time, content) in self._cache])
+        return k in self._cache
 
     @inheritdoc(Cache)
     def put(self, k, *args, **kwargs):
+        evicted = None
         if not self.has(k):
-            # insert
-            new_producer  = k.split('/')[2]  # e.g. tempin6
-            lastWrite = k.split('/')[-2] # e.g. 1520108914423
-            evicted = None
+            # needs to be inserted
             if len(self) == self.maxlen:
-                # older chunk from same producer
-                evicted = [(time, content) for (time,content) in self._cache if content.split('/')[2] == new_producer][0]
-                if evicted == None:
-                    # remove oldest chunk from producer with 2+ objects in cache
-                    old_producers = set()
-                    for (time,content) in self._cache:
-                        old_producer = content.split('/')[2]
-                        if old_producer in old_producers:
-                            # more than 1 item from old_producer
-                            # evict oldest one, i.e. first one
-                            evicted = [(time, content) for (time,content) in self._cache if content.split('/')[2] == old_producer][0]
-                            break
-                        old_producers.add(old_producer)
-                if evicted == None:
-                    # oldest item
-                    evicted = self._cache[0]
+                # something needs to be evicted
+                if any([content.split('/')[2] == k.split('/')[2] for content in self.dump()]):
+                    # 1. find chunk from same producer
+                    evicted = [content for content in self.dump() if content.split('/')[2] == k.split('/')[2]][0]
+                elif len(set([content.split('/')[2] for content in self.dump()])) < len(self):
+                    # 2. find chunk from producer with 2+ chunks in cache
+                    producers = set()
+                    for content in reversed(self.dump()):
+                        producer = content.split('/')[2]
+                        if producer in producers:
+                            evicted = content
+                        else:
+                            producers.add(producer)
+                else:
+                    # 3. find oldest chunk
+                    evicted = self.dump()[0]
                 assert evicted != None
                 self._cache.remove(evicted)
-            # insert
-            heappush(self._cache, (lastWrite, k))
-        return evicted[1]
+            # insert item
+            self._cache.add(k)
+        return evicted
 
     @inheritdoc(Cache)
     def remove(self, k, *args, **kwargs):
-        if not self.has(k):
+        if k in self._cache:
+            self._cache.remove(k)
+            return True
+        else:
             return False
-        toremove = [(time, content) for (time, content) in self._cache if content == k]
-        assert len(toremove) <= 1
-        self._cache.remove(toremove)
-        return True
-
+        
     @inheritdoc(Cache)
     def clear(self):
         self._cache.clear()
@@ -1829,7 +1826,7 @@ class LffCache(Cache):
 
     @inheritdoc(Cache)
     def dump(self):
-        return sorted(self._cache, key=lambda x: int(x.split('/')[-1])) # sorted from least fresh to most fresh, i.e. from lowest nextWrite to highest nextWrite
+        return sorted(self._cache, key=lambda x: float(x.split('/')[-1])) # sorted from least fresh to most fresh, i.e. from lowest nextWrite to highest nextWrite
 
     @inheritdoc(Cache)
     def has(self, k, *args, **kwargs):
