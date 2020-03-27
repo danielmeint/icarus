@@ -163,7 +163,11 @@ def plot_lines(resultset, desc, filename, plotdir):
         ax1.set_xticks(desc['xticks'])
         ax1.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         # ax1.set_xticklabels([str(xtick) for xtick in desc['xticks']])
-        if desc['filter']['topology']['name'] == 'DS2OS':
+        # daniel
+        if 'xticklabels' in desc:
+            print('xticklabels found in desc:', desc['xticklabels'])
+            ax1.set_xticklabels([str(i) for i in desc['xticklabels']])
+        elif desc['filter']['topology']['name'] == 'DS2OS':
             ax1.set_xticklabels([str(i) for i in [6, 12, 18, 24, 36, 72, 180]]) # daniel; only for smart home experiment
         else:
             ax1.set_xticklabels([str(xtick) for xtick in desc['xticks']])
@@ -199,6 +203,7 @@ def plot_lines(resultset, desc, filename, plotdir):
             confidence = desc['confidence'] if 'confidence' in desc else 0.95
             means[j], err[j] = means_confidence_interval(data, confidence)
         yerr = None if 'errorbar' in desc and not desc['errorbar'] or all(err == 0) else err
+        # print('yerr:', yerr)
         fmt = desc['line_style'][yvals[i]] if 'line_style' in desc \
               and yvals[i] in desc['line_style'] else '-'
         # This check is to prevent crashing when trying to plot arrays of nan
@@ -398,6 +403,7 @@ def plot_bar_chart(resultset, desc, filename, plotdir):
         hatch = collections.defaultdict(lambda: None)
     # Plot bars
     left = border  # left-most point of the bar about to draw
+    max_err = 0 # daniel
     for i in range(len(desc['xvals'])):
         l = 0
         for x in placement:
@@ -412,7 +418,14 @@ def plot_bar_chart(resultset, desc, filename, plotdir):
                         if v.getval(ymetrics[l]) is not None]
                 confidence = desc['confidence'] if 'confidence' in desc else 0.95
                 meanval, err = means_confidence_interval(data, confidence)
+
+                # daniel
+                print(data, meanval, err)
+                if err > max_err:
+                    max_err = err
+
                 yerr = None if 'errorbar' in desc and not desc['errorbar'] else err
+                print('yerr:', yerr)
                 if not np.isnan(meanval):
                     empty = False
                 elem[yvals[l]] = plt.bar(left, meanval, width,
@@ -441,6 +454,7 @@ def plot_bar_chart(resultset, desc, filename, plotdir):
     plt.xlim(xmin, left - separation + border)
     if 'ymax' in desc:
         plt.ylim(ymax=desc['ymax'])
+    # print('max_err:', max_err) # daniel
     plt.savefig(os.path.join(plotdir, filename), bbox_inches='tight')
     plt.close(fig)
 
