@@ -853,9 +853,10 @@ def topology_transit_stub(**kwargs):
         (20, 21),   # level 1 right side
         (20, 23), 
         (20, 24),
-        (21, 24),
+        # (21, 24),
         (21, 25),
         (22, 25),
+        (24, 25), # new
         (25, 26),
 
         (10, 100),  # line topology
