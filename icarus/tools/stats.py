@@ -154,6 +154,7 @@ def means_confidence_interval(data, confidence=0.95):
     n = len(data)
     w = np.mean(data)
     s = np.std(data)
+    print('data:', data, '; standard deviation:', s)
     err = ss.norm.interval(confidence)[1]
     return w, err * s / math.sqrt(n)
 
